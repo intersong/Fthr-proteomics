@@ -1,0 +1,108 @@
+---
+title: "Fthr_MSSTATS"
+author: "Jon"
+date: "February 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, cache = TRUE}
+#GET THE PARTY STARTED WITH DATA AND LIBRARIES
+setwd("D:/jmcmurry/Documents/Davis_data/combined/txt")
+rawpeps = read.csv("modificationSpecificPeptides.txt", sep = "\t", row.names = "id")
+```
+
+```{r}
+###FILTER THE DATA
+library("stringr")
+allpeps           = rawpeps
+#Limit scope to only one Thr/pep.  Cuts # of F-peps down to 500 from 900.
+T.Count           = str_count(allpeps$Sequence, "T")
+allpeps           = cbind(T.Count, allpeps)
+names(allpeps)[1] = "T.Count"
+allpeps           = allpeps[allpeps$T.Count == 1,]                     
+#Limit scope to fully tryptic peptides.
+#allpeps          = allpeps[allpeps$Missed.cleavages == 0,]
+#Remove hits to decoy and contaminant databases.
+allpeps           = allpeps[allpeps$Reverse != "+",]
+allpeps           = allpeps[allpeps$Potential.contaminant != "+",]
+#Limit scope of analysis to high quality hits.
+allpeps           = allpeps[allpeps$PEP <0.01,]						#a less stringent PEP will give ~20% more IDs and ~15% more proteins
+#Limit scope of analysis to proteotypic peptides.
+allpeps           = allpeps[allpeps$Unique..Proteins. == "yes",]
+#Get row means for the pertinent rows and eliminate rows with no measured intensity.
+delp0564rows      = c(40,43,44,45)
+names(allpeps)[delp0564rows]
+delp0564means     = rowMeans(allpeps[,delp0564rows])
+allpeps           = allpeps[ delp0564means > 0 & is.na(delp0564means) == FALSE ,]
+###Extract Fthr modified and unmodified peptides.
+Fpeps = allpeps[allpeps$Modifications == "Fluorothreonine",] #"Fluorothreonine;Oxidation (M)" | allpeps$Modifications == "Fluorothreonine" | allpeps$Modifications == "Acetyl (Protein N-term);Oxidation (M)",]
+Tpeps = allpeps[allpeps$Modifications == "Unmodified",]
+hist(log(Fpeps[,40]))
+```
+
+```{r}
+###Qualitative data analysis
+mergedPeps = merge(Tpeps, Fpeps, by = "Sequence")# all=TRUE)
+mergedPeps[is.na(mergedPeps)] = 0
+Tmean = rowMeans(mergedPeps[,c(40,43,44,45)])
+Fmean = rowMeans(mergedPeps[,c(95,98,99,100)])
+plot(Tmean, Fmean, pch = 16, cex = 0.5, log= "xy")
+hist(Fmean/(Fmean+Tmean))
+summary(Fmean/(Fmean+Tmean))
+plot(density(log(Tmean, base=10)), lwd=2, xlim=c(5,10))
+points(density(log(Fmean, base=10)), col = 2, lwd=2, type = "l")
+#plot(Tmean,Fmean/(Fmean+Tmean),pch=16, cex=0.5, log="x")
+```
+
+
+```{r}
+library("MSstats")
+
+###Pull out only peptides that are present in both Fthr and Thr forms.
+intersect_names = intersect(Tpeps$Sequence, Fpeps$Sequence)
+Fpeps           = Fpeps[Fpeps$Sequence %in% intersect_names,]
+Tpeps           = Tpeps[Tpeps$Sequence %in% intersect_names,]
+
+#Define a function to convert Maxquant output into MSstats input.  
+parse_MSstats = function(input, cols, cond) {
+tempframe = NULL
+for( i in cols) {
+  temp                = NULL
+  ell                 = length(input[,i])
+  samp                = names(input)[i]
+  #Weid stuff. Need to distinguish the fluorothreonine "run" from the threonine "run"
+  #when they actually originate from the same run.
+  run                 = paste(samp, cond, sep = "_")
+  ProteinName         = input$Proteins
+  PeptideSequence     = input$Sequence
+  Intensity           = input[,i]
+  PrecursorCharge     = input$Charges
+  FragmentIon         = rep(NA,     ell)
+  ProductCharge       = rep(NA,     ell)
+  IsotopeLabelType    = rep("L",    ell)
+  Run                 = rep(run,   ell)
+  BioReplicate        = rep(samp,   ell)
+  Condition           = rep(cond,   ell)
+  
+  temp                = data.frame(ProteinName, PeptideSequence, 
+                                   PrecursorCharge, FragmentIon, 
+                                   ProductCharge, IsotopeLabelType, 
+                                   Condition, BioReplicate, 
+                                   Run, Intensity)
+  tempframe           =rbind(temp, tempframe)
+}
+  return(tempframe)
+}
+
+Fpeps_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine")
+Tpeps_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine" )
+temp         = rbind(Fpeps_format, Tpeps_format) 
+hist(log(temp$Intensity))
+stuff        = dataProcess(raw=temp, censoredInt=0, MBimpute=TRUE)
+
+```
+
