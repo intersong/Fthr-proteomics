@@ -23,9 +23,9 @@ allpeps           = rawpeps
 T.Count           = str_count(allpeps$Sequence, "T")
 allpeps           = cbind(T.Count, allpeps)
 names(allpeps)[1] = "T.Count"
-allpeps           = allpeps[allpeps$T.Count == 1,]                     
+allpeps           = allpeps[allpeps$T.Count ==1,]                     
 #Limit scope to fully tryptic peptides.
-#allpeps          = allpeps[allpeps$Missed.cleavages == 0,]
+allpeps          = allpeps[allpeps$Missed.cleavages == 0,]
 #Remove hits to decoy and contaminant databases.
 allpeps           = allpeps[allpeps$Reverse != "+",]
 allpeps           = allpeps[allpeps$Potential.contaminant != "+",]
@@ -35,26 +35,66 @@ allpeps           = allpeps[allpeps$PEP <0.01,]						#a less stringent PEP will 
 allpeps           = allpeps[allpeps$Unique..Proteins. == "yes",]
 #Get row means for the pertinent rows and eliminate rows with no measured intensity.
 delp0564rows      = c(40,43,44,45)
-names(allpeps)[delp0564rows]
+#names(allpeps)[delp0564rows]
 delp0564means     = rowMeans(allpeps[,delp0564rows])
 allpeps           = allpeps[ delp0564means > 0 & is.na(delp0564means) == FALSE ,]
+
 ###Extract Fthr modified and unmodified peptides.
-Fpeps = allpeps[allpeps$Modifications == "Fluorothreonine",] #"Fluorothreonine;Oxidation (M)" | allpeps$Modifications == "Fluorothreonine" | allpeps$Modifications == "Acetyl (Protein N-term);Oxidation (M)",]
+Fpeps = allpeps[allpeps$Modifications == "Fluorothreonine",] 
 Tpeps = allpeps[allpeps$Modifications == "Unmodified",]
-hist(log(Fpeps[,40]))
 ```
 
 ```{r}
 ###Qualitative data analysis
 mergedPeps = merge(Tpeps, Fpeps, by = "Sequence")# all=TRUE)
 mergedPeps[is.na(mergedPeps)] = 0
-Tmean = rowMeans(mergedPeps[,c(40,43,44,45)])
-Fmean = rowMeans(mergedPeps[,c(95,98,99,100)])
-plot(Tmean, Fmean, pch = 16, cex = 0.5, log= "xy")
-hist(Fmean/(Fmean+Tmean))
-summary(Fmean/(Fmean+Tmean))
-plot(density(log(Tmean, base=10)), lwd=2, xlim=c(5,10))
-points(density(log(Fmean, base=10)), col = 2, lwd=2, type = "l")
+Trows      = c(40,43,44,45)
+Frows      = c(95,98,99,100)
+Tvec       = c(mergedPeps[,Trows[1]]   , mergedPeps[,Trows[2]]   , mergedPeps[,Trows[3]]   , mergedPeps[,Trows[4]])
+Fvec       = c(mergedPeps[,Frows[1]]   , mergedPeps[,Frows[2]]   , mergedPeps[,Frows[3]]   , mergedPeps[,Frows[4]])
+Fmeans     = rowMeans(mergedPeps[,Frows])
+Tmeans     = rowMeans(mergedPeps[,Trows])
+Fmeans_WT  = rowMeans(mergedPeps[,Frows_WT])
+Tmeans_WT  = rowMeans(mergedPeps[,Trows_WT])
+Tvec_WT    = c(mergedPeps[,Trows_WT[1]], mergedPeps[,Trows_WT[2]], mergedPeps[,Trows_WT[3]], mergedPeps[,Trows_WT[4]])
+Fvec_WT    = c(mergedPeps[,Frows_WT[1]], mergedPeps[,Frows_WT[2]], mergedPeps[,Frows_WT[3]], mergedPeps[,Frows_WT[4]])
+ratios     = mergedPeps[,Frows]/(mergedPeps[,Frows] + mergedPeps[,Trows]+0.0001)
+ratios_WT  = mergedPeps[,Frows_WT]/(mergedPeps[,Frows_WT] + mergedPeps[,Trows_WT]+0.0001)
+meanrats   = rowMeans(ratios)
+meanrats_WT= rowMeans(ratios_WT)
+summary(Fvec/(Fvec + Tvec))
+summary(Fmeans/(Fmeans + Tmeans))
+
+hist   (meanrats,
+        main = "Frequency of Fthr incorporation",
+        xlab = "Est. Fthr incorporation", 
+        breaks = seq(0,1, by = 0.025), col = 2
+               )
+box()
+
+Trows_WT   = c(39,41,42,46)
+Frows_WT   = c(94,96,97,101)
+hist   (meanrats_WT,
+        main = "Frequency of Fthr incorporation",
+        xlab = "Est. Fthr incorporation",
+        breaks = seq(0,1, by = 0.025), col = "gray"
+               )
+box()
+
+
+
+plot    (Tmeans, Fmeans,
+         main = "Intensity of Thr vs. Fthr signal",
+         xlab = "Thr intensity",
+         ylab = "Fthr intensity",
+         ylim = c(1e4, 1e10), xlim = c(1e6, 1e10),
+         pch = 16, log = "xy", cex = 0.5, asp = 1)
+points   (Tmeans_WT, Fmeans_WT,
+          pch = 16, cex = 0.5, col = 2)
+
+#plot   (Tmean, Fmean, pch = 16, cex = 0.5, log= "xy")
+#plot(density(log(Tmean, base=10)), lwd=2, xlim=c(5,10))
+#points(density(log(Fmean, base=10)), col = 2, lwd=2, type = "l")
 #plot(Tmean,Fmean/(Fmean+Tmean),pch=16, cex=0.5, log="x")
 ```
 
@@ -63,11 +103,77 @@ points(density(log(Fmean, base=10)), col = 2, lwd=2, type = "l")
 library("MSstats")
 
 ###Pull out only peptides that are present in both Fthr and Thr forms.
-intersect_names = intersect(Tpeps$Sequence, Fpeps$Sequence)
-Fpeps           = Fpeps[Fpeps$Sequence %in% intersect_names,]
-Tpeps           = Tpeps[Tpeps$Sequence %in% intersect_names,]
+intersect_names     = intersect(Tpeps$Sequence, Fpeps$Sequence)
+Fpeps               = Fpeps[Fpeps$Sequence %in% intersect_names,]
+Tpeps               = Tpeps[Tpeps$Sequence %in% intersect_names,]
+Fpeps[is.na(Fpeps)] = 0
+Tpeps[is.na(Tpeps)] = 0
 
 #Define a function to convert Maxquant output into MSstats input.  
+parse_MSstats = function(input, cols, cond) {
+tempframe = NULL
+for( i in cols) {
+  temp                = NULL
+  ell                 = length(input[,i])
+  samp                = names(input)[i]
+  #Weid stuff. Need to distinguish the fluorothreonine "run" from the threonine "run"
+  #when they actually originate from the same run.
+  run                 = paste(samp, cond, sep = "_")
+  ProteinName         = input$Proteins #$Sequence to compare peptides? Proteins for proteins.
+  PeptideSequence     = input$Sequence
+  Intensity           = input[,i]
+  PrecursorCharge     = input$Charges
+  FragmentIon         = rep(NA,     ell)
+  ProductCharge       = rep(NA,     ell)
+  IsotopeLabelType    = rep("L",    ell)
+  Run                 = rep(run,    ell)
+  BioReplicate        = rep(samp,   ell)
+  Condition           = rep(cond,   ell)
+  
+  temp                = data.frame(ProteinName, PeptideSequence, 
+                                   PrecursorCharge, FragmentIon, 
+                                   ProductCharge, IsotopeLabelType, 
+                                   Condition, BioReplicate, 
+                                   Run, Intensity)
+  tempframe           =rbind(temp, tempframe)
+}
+  return(tempframe)
+}
+
+Fpeps_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine")
+Tpeps_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine" )
+MSSinput    = rbind(Fpeps_format, Tpeps_format) 
+#quantile seems to give more reasonable distr. of log2FC
+stuff        = dataProcess(raw=MSSinput, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
+comparison1  = matrix(c(1,-1), nrow=1)
+row.names(comparison1) = "AA"
+stuffcompare = groupComparison(contrast.matrix = comparison1, data=stuff)
+#pull out only rows for which a comparison could be made, get the fold change and p values.
+compres      = stuffcompare$ComparisonResult[is.na(stuffcompare$ComparisonResult$pvalue) == FALSE,]
+FC           = compres$log2FC
+p            = compres$pvalue
+```
+
+```{r}
+###FILTER THE DATA
+library("stringr")
+library("MSstats")
+protpeps           = rawpeps
+#Limit scope to fully tryptic peptides.
+protpeps          = protpeps[protpeps$Missed.cleavages == 0,]
+#Remove hits to decoy and contaminant databases.
+protpeps           = protpeps[protpeps$Reverse != "+",]
+protpeps           = protpeps[protpeps$Potential.contaminant != "+",]
+#Limit scope of analysis to high quality hits.
+protpeps           = protpeps[protpeps$PEP <0.01,]						#a less stringent PEP will give ~20% more IDs and ~15% more proteins
+#Limit scope of analysis to proteotypic peptides.
+protpeps           = protpeps[protpeps$Unique..Proteins. == "yes",]
+#Get row means for the pertinent rows and eliminate rows with no measured intensity.
+delp0564rows      = c(40,43,44,45)-1
+WTrows            = c(39,41,42,46)-1
+###Extractunmodified peptides.
+protpeps = protpeps[protpeps$Modifications == "Unmodified",]
+
 parse_MSstats = function(input, cols, cond) {
 tempframe = NULL
 for( i in cols) {
@@ -84,7 +190,7 @@ for( i in cols) {
   FragmentIon         = rep(NA,     ell)
   ProductCharge       = rep(NA,     ell)
   IsotopeLabelType    = rep("L",    ell)
-  Run                 = rep(run,   ell)
+  Run                 = rep(run,    ell)
   BioReplicate        = rep(samp,   ell)
   Condition           = rep(cond,   ell)
   
@@ -97,12 +203,31 @@ for( i in cols) {
 }
   return(tempframe)
 }
-
-Fpeps_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine")
-Tpeps_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine" )
-temp         = rbind(Fpeps_format, Tpeps_format) 
-hist(log(temp$Intensity))
-stuff        = dataProcess(raw=temp, censoredInt=0, MBimpute=TRUE)
-
+delp0564_peps = parse_MSstats(protpeps, delp0564rows, "delp0564")
+WT_peps       = parse_MSstats(protpeps, WTrows      , "WT")
+diff_in       = rbind(delp0564_peps, WT_peps)
+diff_assess   = dataProcess(raw = diff_in, censoredInt = 0)
+comparison2 = matrix(c(1,-1), nrow=1)
+row.names(comparison2) = "Strain"
+diff_comp =  groupComparison(contrast.matrix = comparison2, data=diff_assess)
+groupComparisonPlots(diff_comp$ComparisonResult, type = 'VolcanoPlot')
 ```
 
+
+```{r}
+
+my.t.test.p.value <- function(...) {
+    obj<-try(t.test(...), silent=TRUE)
+    if (is(obj, "try-error")) return(NA) else return(obj$p.value)
+}
+mergedPeps = merge(Tpeps, Fpeps, by = "Sequence")# all=TRUE)
+mergedPeps[is.na(mergedPeps)] = 0
+Trows   = c(40,43,44,45)
+Frows   = c(95,98,99,100)
+
+p = c()
+for (i in 1:dim(mergedPeps)[1]) {
+  r    = mergedPeps[i,Frows]/(mergedPeps[i, Frows] + mergedPeps[i,Trows])
+  p[i] = my.t.test.p.value(r, mu = 0.1, alternative = "less")
+}
+```
