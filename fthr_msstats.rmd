@@ -50,6 +50,8 @@ mergedPeps = merge(Tpeps, Fpeps, by = "Sequence")# all=TRUE)
 mergedPeps[is.na(mergedPeps)] = 0
 Trows      = c(40,43,44,45)
 Frows      = c(95,98,99,100)
+Trows_WT   = c(39,41,42,46)
+Frows_WT   = c(94,96,97,101)
 Tvec       = c(mergedPeps[,Trows[1]]   , mergedPeps[,Trows[2]]   , mergedPeps[,Trows[3]]   , mergedPeps[,Trows[4]])
 Fvec       = c(mergedPeps[,Frows[1]]   , mergedPeps[,Frows[2]]   , mergedPeps[,Frows[3]]   , mergedPeps[,Frows[4]])
 Fmeans     = rowMeans(mergedPeps[,Frows])
@@ -72,8 +74,7 @@ hist   (meanrats,
                )
 box()
 
-Trows_WT   = c(39,41,42,46)
-Frows_WT   = c(94,96,97,101)
+
 hist   (meanrats_WT,
         main = "Frequency of Fthr incorporation",
         xlab = "Est. Fthr incorporation",
@@ -231,3 +232,25 @@ for (i in 1:dim(mergedPeps)[1]) {
   p[i] = my.t.test.p.value(r, mu = 0.1, alternative = "less")
 }
 ```
+
+```{r}
+setwd("D:/jmcmurry/Documents/20160609_morph_processing_files/")
+gcogs                  = read.csv("genome_COGs.txt", sep = "\t")
+pcogs                  = read.csv("plasmid_COGs.txt", sep= "\t")
+IDmapping              = read.csv("gene-name-comparisons.txt", sep = "\t")
+allcogs                = rbind(gcogs, pcogs)
+allcogs                = merge(allcogs, IDmapping, by = "SCAT_ID")
+names(allcogs)[14]     = "Proteins"
+Fcogs                  = merge(allcogs, Fpeps, by = "Proteins")
+Tcogs                  = merge(allcogs, Tpeps, by = "Proteins")
+Fcog_table             = data.frame(table(Fcogs$COGclassID))
+Tcog_table             = data.frame(table(Tcogs$COGclassID))
+TFcog_table            = merge(Tcog_table, Fcog_table, by = "Var1")
+row.names(TFcog_table) = TFcog_table$Var1
+TFcog_table            = TFcog_table[,2:3]
+names(TFcog_table)     = c("Fthr peps", "Thr peps")
+write.csv(TFcog_table, "FpepTpep_COGs.csv")
+fishy                  = fisher.test(TFcog_table, simulate.p.value = TRUE)
+fishy
+```
+
