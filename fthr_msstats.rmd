@@ -89,9 +89,9 @@ plot    (Tmeans, Fmeans,
          xlab = "Thr intensity",
          ylab = "Fthr intensity",
          ylim = c(1e4, 1e10), xlim = c(1e6, 1e10),
-         pch = 16, log = "xy", cex = 0.5, asp = 1)
+         pch = 16, log = "xy", cex = 0.5, asp = 1, col = 2)
 points   (Tmeans_WT, Fmeans_WT,
-          pch = 16, cex = 0.5, col = 2)
+          pch = 16, cex = 0.5, col = 1)
 
 #plot   (Tmean, Fmean, pch = 16, cex = 0.5, log= "xy")
 #plot(density(log(Tmean, base=10)), lwd=2, xlim=c(5,10))
@@ -111,7 +111,7 @@ Fpeps[is.na(Fpeps)] = 0
 Tpeps[is.na(Tpeps)] = 0
 
 #Define a function to convert Maxquant output into MSstats input.  
-parse_MSstats = function(input, cols, cond) {
+parse_MSstats = function(input, cols, cond, protpep) {
 tempframe = NULL
 for( i in cols) {
   temp                = NULL
@@ -120,7 +120,12 @@ for( i in cols) {
   #Weid stuff. Need to distinguish the fluorothreonine "run" from the threonine "run"
   #when they actually originate from the same run.
   run                 = paste(samp, cond, sep = "_")
-  ProteinName         = input$Proteins #$Sequence to compare peptides? Proteins for proteins.
+  if (protpep == "Protein") {
+      ProteinName         = input$Proteins 
+  }
+  if (protpep == "Peptide") {
+      ProteinName         = paste(input$Sequence, input$Proteins, sep = "_")
+  }
   PeptideSequence     = input$Sequence
   Intensity           = input[,i]
   PrecursorCharge     = input$Charges
@@ -141,18 +146,36 @@ for( i in cols) {
   return(tempframe)
 }
 
-Fpeps_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine")
-Tpeps_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine" )
-MSSinput    = rbind(Fpeps_format, Tpeps_format) 
+Fprot_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine", "Protein" )
+Tprot_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine"      , "Protein" )
+MSSinput     = rbind(Fprot_format, Tprot_format) 
 #quantile seems to give more reasonable distr. of log2FC
-stuff        = dataProcess(raw=MSSinput, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
+FvsTproc     = dataProcess(raw=MSSinput, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
 comparison1  = matrix(c(1,-1), nrow=1)
 row.names(comparison1) = "AA"
-stuffcompare = groupComparison(contrast.matrix = comparison1, data=stuff)
+FvsTquant    = groupComparison(contrast.matrix = comparison1, data=FvsTproc)
 #pull out only rows for which a comparison could be made, get the fold change and p values.
-compres      = stuffcompare$ComparisonResult[is.na(stuffcompare$ComparisonResult$pvalue) == FALSE,]
-FC           = compres$log2FC
-p            = compres$pvalue
+FvsTres      = FvsTquant$ComparisonResult[is.na(FvsTquant$ComparisonResult$pvalue) == FALSE,]
+FC           = FvsTres$log2FC
+p            = FvsTres$pvalue
+row.names(FvsTres) = FvsTres$Protein
+write.csv(FvsTres[order(FvsTres$pvalue),c(3,7,8)], "Fthr_vs_Thr_comp_proteins.csv")
+
+#Now at the peptide level
+Fpep_format  = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine", "Peptide" )
+Tpep_format  = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine"      , "Peptide" )
+MSSinput_pep = rbind(Fpep_format, Tpep_format) 
+#quantile seems to give more reasonable distr. of log2FC
+FvsTproc_pep = dataProcess(raw=MSSinput_pep, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
+comparison1  = matrix(c(1,-1), nrow=1)
+row.names(comparison1) = "AA"
+FvsTquant_pep= groupComparison(contrast.matrix = comparison1, data=FvsTproc_pep)
+#pull out only rows for which a comparison could be made, get the fold change and p values.
+FvsTres_pep  = FvsTquant_pep$ComparisonResult[is.na(FvsTquant_pep$ComparisonResult$pvalue) == FALSE,]
+FC_pep       = FvsTres_pep$log2FC
+p_pep        = FvsTres_pep$pvalue
+row.names(FvsTres_pep) = FvsTres_pep$Protein
+write.csv(FvsTres_pep[order(FvsTres_pep$pvalue),c(3,7,8)], "Fthr_vs_Thr_comp_peptides.csv")
 ```
 
 ```{r}
@@ -208,9 +231,9 @@ delp0564_peps = parse_MSstats(protpeps, delp0564rows, "delp0564")
 WT_peps       = parse_MSstats(protpeps, WTrows      , "WT")
 diff_in       = rbind(delp0564_peps, WT_peps)
 diff_assess   = dataProcess(raw = diff_in, censoredInt = 0)
-comparison2 = matrix(c(1,-1), nrow=1)
+comparison2   = matrix(c(1,-1), nrow=1)
 row.names(comparison2) = "Strain"
-diff_comp =  groupComparison(contrast.matrix = comparison2, data=diff_assess)
+diff_comp     =  groupComparison(contrast.matrix = comparison2, data=diff_assess)
 groupComparisonPlots(diff_comp$ComparisonResult, type = 'VolcanoPlot')
 ```
 
