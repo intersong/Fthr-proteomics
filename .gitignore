@@ -48,3 +48,6 @@ __pycache*
 *.log
 *.csv
 *.html
+*.pdf
+*.csv
+*.xlsx
