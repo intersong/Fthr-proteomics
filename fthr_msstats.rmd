@@ -65,25 +65,28 @@ ratios_WT  = mergedPeps[,Frows_WT]/(mergedPeps[,Frows_WT] + mergedPeps[,Trows_WT
 meanrats   = rowMeans(ratios)
 meanrats_WT= rowMeans(ratios_WT)
 summary(Fvec/(Fvec + Tvec))
-summary(Fmeans/(Fmeans + Tmeans))
+summary(Fvec_WT/(Fvec_WT + Tvec_WT))
+#summary(Fmeans/(Fmeans + Tmeans))
 
+pdf("delp0564_Fincorp_hist.pdf", width = 5, height =5)
 hist   (meanrats,
         main = "Frequency of Fthr incorporation",
         xlab = "Est. Fthr incorporation", 
         breaks = seq(0,1, by = 0.025), col = 2
                )
 box()
+dev.off()
 
-
+pdf("WT_Fincorp_hist.pdf", width = 5, height =5)
 hist   (meanrats_WT,
         main = "Frequency of Fthr incorporation",
         xlab = "Est. Fthr incorporation",
         breaks = seq(0,1, by = 0.025), col = "gray"
                )
 box()
+dev.off()
 
-
-
+pdf("scatter_TvF_intens.pdf", width = 5, height = 5)
 plot    (Tmeans, Fmeans,
          main = "Intensity of Thr vs. Fthr signal",
          xlab = "Thr intensity",
@@ -92,6 +95,15 @@ plot    (Tmeans, Fmeans,
          pch = 16, log = "xy", cex = 0.5, asp = 1, col = 2)
 points   (Tmeans_WT, Fmeans_WT,
           pch = 16, cex = 0.5, col = 1)
+dev.off()
+
+pdf("RT_comparison.pdf", height = 5, width = 5)
+plot(mergedPeps$Retention.time.x, 
+     mergedPeps$Retention.time.y,
+     pch = 16, cex=.5,
+     xlab = "Thr ret. time (min)",
+     ylab = "Fth ret.time (min)")
+dev.off()   
 
 #plot   (Tmean, Fmean, pch = 16, cex = 0.5, log= "xy")
 #plot(density(log(Tmean, base=10)), lwd=2, xlim=c(5,10))
@@ -252,8 +264,11 @@ Frows   = c(95,98,99,100)
 p = c()
 for (i in 1:dim(mergedPeps)[1]) {
   r    = mergedPeps[i,Frows]/(mergedPeps[i, Frows] + mergedPeps[i,Trows])
-  p[i] = my.t.test.p.value(r, mu = 0.1, alternative = "less")
+  p[i] = my.t.test.p.value(r, mu = 0.1)
 }
+
+crap = cbind(p, as.character(mergedPeps$Sequence), rowMeans(mergedPeps[,Frows]/(mergedPeps[, Frows] + mergedPeps[,Trows])))
+write.csv(crap, "crap.csv")
 ```
 
 ```{r}
