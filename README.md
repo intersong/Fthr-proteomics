@@ -1,4 +1,4 @@
-## This repository contains a series of scripts for extracting information from tabular output from proteomics database searches.  
+## This repository contains a series of scripts for extracting information about modifications from tabular output from MaxQuant.  Currently very specific to fluorothreonine modifications in the context of *S. cattleya*.  The scripts were used to process data for the manuscript "A fluorothreonyl-tRNA deacylase prevents mistranslation in the organofluorine producer *S. cattleya*."
 
 ### 1.  spectrum_counter_MaxQUant.py
 
