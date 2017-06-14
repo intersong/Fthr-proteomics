@@ -1,33 +1,12 @@
-This repo contains a series of scripts for extracting information from tabular output from proteomics database searches.  Specifically, it is set up to parse output from the Morpheus search tool.
-1.  codon_puller.py
-Input:
-hard-coded genbank files
- XXXX_PSMS.tsv file
- Output:
- a table of codon usage for modified and unmodified positions.
- Notes:
- Potentially returns incorrect results for peptides that occur at multiple locations in the genome.  
- Many key variables are hard coded.
+This repository contains a series of scripts for extracting information from tabular output from proteomics database searches.  
+1.  spectrum_counter_MaxQUant.py
+This script parses MaxQuant output, and prints a table with counts for FThr-countaining PSMs, total PSMs, FThr-countaining proteins, and total proteins.  It was used to generate table 1a.
 
-2.  DEseq_cleaner2.py
-Input:
-XXXX_PSMS.tsv file
-Output:
-PSMs summed at the protein level for unmodfified and modified peptides that meet specific criteria.
-Suitable for input into DESeq, edgeR, or similar.
-Not the ideal approach overall, maybe?
+2.  codon_puller_MaxQuant.py
+This script parses MaxQuant output, and prints a table with the incidence of PSMs corresponding to single-Thr peptides encoded by each of the four Thr codons.  It was used to generate table S3.
 
-3.  number_of_peptides_with_F_vs_total.py
-Input:
-XXXX_PSMS.tsv file
-Output:
-Quality PSMs corresponding to unmodified and modified PEPTIDES.
+3.  fthr_msstats.rmd
+This script parses MaqQuant output, and prints a) histograms of estimated FThr incorporation for peptides with at least one FThr-containing PSM across all datasets, conditioned by strain (WT or p0564 KO),  b)  supplementary data tables, which contain measures or which peptides/proteins contain more/less FTHr than expected in the p0564 datasets, and c) assigns FThr-modified and total protein IDs to COG groups.
 
-4.  number_of_proteins_with_F_vs_total.py
-Input:
-XXXX_PSMS.tsv file
-Output:
-Quality PSMs corresponding to unmodified and modified peptides mapping to specific PROTEINS.
-
-5.  for_getting_peptides_proteins_with_fthr.py
-For printing out supplemenental tables with all modified, unmodified peptides.
+4.  Data files:
+modificationSpecificPeptides.txt

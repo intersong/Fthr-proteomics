@@ -58,4 +58,5 @@ codon_puller.py
 codon_puller_MSstats.py
 DEseq_cleaner2.py
 inventory.txt
+sessionInfo.txt
 for_getting_peptides_proteins_with_fthr.py
