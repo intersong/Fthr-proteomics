@@ -51,3 +51,4 @@ __pycache*
 *.pdf
 *.csv
 *.xlsx
+*.txt

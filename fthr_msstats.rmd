@@ -40,8 +40,34 @@ delp0564means     = rowMeans(allpeps[,delp0564rows])
 allpeps           = allpeps[ delp0564means > 0 & is.na(delp0564means) == FALSE ,]
 
 ###Extract Fthr modified and unmodified peptides.
-Fpeps = allpeps[allpeps$Modifications == "Fluorothreonine",] 
+Fpeps = allpeps[allpeps$Modifications == "Fluorothreonine",]
 Tpeps = allpeps[allpeps$Modifications == "Unmodified",]
+```
+
+```{r}
+setwd("D:/jmcmurry/Documents/20160609_morph_processing_files/")
+gcogs                  = read.csv("genome_COGs.txt", sep = "\t")
+pcogs                  = read.csv("plasmid_COGs.txt", sep= "\t")
+IDmapping              = read.csv("gene-name-comparisons.txt", sep = "\t")
+allcogs                = rbind(gcogs, pcogs)
+allcogs                = merge(allcogs, IDmapping, by = "SCAT_ID")
+names(allcogs)[14]     = "Proteins"
+FIDs                   = data.frame(unique(Fpeps$Proteins))
+TIDs                   = data.frame(unique(Tpeps$Proteins))
+names(FIDs)[1]         = "Proteins"
+names(TIDs)[1]         = "Proteins"
+Fcogs                  = merge(allcogs, FIDs, by = "Proteins")
+Tcogs                  = merge(allcogs, TIDs, by = "Proteins")
+
+Fcog_table             = data.frame(table(Fcogs$COGclassID))
+Tcog_table             = data.frame(table(Tcogs$COGclassID))
+TFcog_table            = merge(Tcog_table, Fcog_table, by = "Var1")
+row.names(TFcog_table) = TFcog_table$Var1
+TFcog_table            = TFcog_table[,2:3]
+names(TFcog_table)     = c("Thr peps", "Fthr peps")
+write.csv(TFcog_table, "FpepTpep_COGs.csv")
+fishy                  = fisher.test(TFcog_table, simulate.p.value = TRUE)
+fishy
 ```
 
 ```{r}
@@ -71,7 +97,7 @@ summary(Fvec_WT/(Fvec_WT + Tvec_WT))
 pdf("delp0564_Fincorp_hist.pdf", width = 5, height =5)
 hist   (meanrats,
         main = "Frequency of Fthr incorporation",
-        xlab = "Est. Fthr incorporation", 
+        xlab = "Est. Fthr incorporation",
         breaks = seq(0,1, by = 0.025), col = 2
                )
 box()
@@ -98,7 +124,7 @@ points   (Tmeans_WT, Fmeans_WT,
 dev.off()
 
 pdf("RT_comparison.pdf", height = 5, width = 5)
-plot(mergedPeps$Retention.time.x, 
+plot(mergedPeps$Retention.time.x,
      mergedPeps$Retention.time.y,
      pch = 16, cex=.5,
      xlab = "Thr ret. time (min)",
@@ -133,7 +159,7 @@ for( i in cols) {
   #when they actually originate from the same run.
   run                 = paste(samp, cond, sep = "_")
   if (protpep == "Protein") {
-      ProteinName         = input$Proteins 
+      ProteinName         = input$Proteins
   }
   if (protpep == "Peptide") {
       ProteinName         = paste(input$Sequence, input$Proteins, sep = "_")
@@ -147,11 +173,11 @@ for( i in cols) {
   Run                 = rep(run,    ell)
   BioReplicate        = rep(samp,   ell)
   Condition           = rep(cond,   ell)
-  
-  temp                = data.frame(ProteinName, PeptideSequence, 
-                                   PrecursorCharge, FragmentIon, 
-                                   ProductCharge, IsotopeLabelType, 
-                                   Condition, BioReplicate, 
+
+  temp                = data.frame(ProteinName, PeptideSequence,
+                                   PrecursorCharge, FragmentIon,
+                                   ProductCharge, IsotopeLabelType,
+                                   Condition, BioReplicate,
                                    Run, Intensity)
   tempframe           =rbind(temp, tempframe)
 }
@@ -160,9 +186,9 @@ for( i in cols) {
 
 Fprot_format = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine", "Protein" )
 Tprot_format = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine"      , "Protein" )
-MSSinput     = rbind(Fprot_format, Tprot_format) 
+MSSinput     = rbind(Fprot_format, Tprot_format)
 #quantile seems to give more reasonable distr. of log2FC
-FvsTproc     = dataProcess(raw=MSSinput, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
+FvsTproc     = dataProcess(raw=MSSinput, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile')
 comparison1  = matrix(c(1,-1), nrow=1)
 row.names(comparison1) = "AA"
 FvsTquant    = groupComparison(contrast.matrix = comparison1, data=FvsTproc)
@@ -171,14 +197,19 @@ FvsTres      = FvsTquant$ComparisonResult[is.na(FvsTquant$ComparisonResult$pvalu
 FC           = FvsTres$log2FC
 p            = FvsTres$pvalue
 row.names(FvsTres) = FvsTres$Protein
-write.csv(FvsTres[order(FvsTres$pvalue),c(3,7,8)], "Fthr_vs_Thr_comp_proteins.csv")
+FvsTres      = FvsTres[order(FvsTres$pvalue),c(3,7,8)]
+names(FvsTres)[1] = "ID"
+annotations  = read.csv("D:/jmcmurry/Documents/Davis_data/id_dictionary.tsv", sep = "\t")
+row.names(annotations) = annotations$ID
+FvsTres      = merge(FvsTres, annotations, by = "ID")
+write.csv(FvsTres, "Fthr_vs_Thr_comp_proteins.csv")
 
 #Now at the peptide level
 Fpep_format  = parse_MSstats(Fpeps, c(40,43,44,45), "Fluorothreonine", "Peptide" )
 Tpep_format  = parse_MSstats(Tpeps, c(40,43,44,45), "Threonine"      , "Peptide" )
-MSSinput_pep = rbind(Fpep_format, Tpep_format) 
+MSSinput_pep = rbind(Fpep_format, Tpep_format)
 #quantile seems to give more reasonable distr. of log2FC
-FvsTproc_pep = dataProcess(raw=MSSinput_pep, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile') 
+FvsTproc_pep = dataProcess(raw=MSSinput_pep, censoredInt = 0, MBimpute = TRUE, normalization = 'quantile')
 comparison1  = matrix(c(1,-1), nrow=1)
 row.names(comparison1) = "AA"
 FvsTquant_pep= groupComparison(contrast.matrix = comparison1, data=FvsTproc_pep)
@@ -187,7 +218,12 @@ FvsTres_pep  = FvsTquant_pep$ComparisonResult[is.na(FvsTquant_pep$ComparisonResu
 FC_pep       = FvsTres_pep$log2FC
 p_pep        = FvsTres_pep$pvalue
 row.names(FvsTres_pep) = FvsTres_pep$Protein
-write.csv(FvsTres_pep[order(FvsTres_pep$pvalue),c(3,7,8)], "Fthr_vs_Thr_comp_peptides.csv")
+FvsTres_pep  = FvsTres_pep[order(FvsTres_pep$pvalue),c(3,7,8)]
+names(FvsTres_pep)[1] = "ID"
+annotations  = read.csv("D:/jmcmurry/Documents/Davis_data/id_dictionary.tsv", sep = "\t")
+row.names(annotations) = annotations$ID
+FvsTres_pep  = merge(FvsTres_pep, annotations, by = "ID")
+write.csv(FvsTres_pep, "Fthr_vs_Thr_comp_peptides.csv")
 ```
 
 ```{r}
@@ -229,11 +265,11 @@ for( i in cols) {
   Run                 = rep(run,    ell)
   BioReplicate        = rep(samp,   ell)
   Condition           = rep(cond,   ell)
-  
-  temp                = data.frame(ProteinName, PeptideSequence, 
-                                   PrecursorCharge, FragmentIon, 
-                                   ProductCharge, IsotopeLabelType, 
-                                   Condition, BioReplicate, 
+
+  temp                = data.frame(ProteinName, PeptideSequence,
+                                   PrecursorCharge, FragmentIon,
+                                   ProductCharge, IsotopeLabelType,
+                                   Condition, BioReplicate,
                                    Run, Intensity)
   tempframe           =rbind(temp, tempframe)
 }
@@ -248,47 +284,3 @@ row.names(comparison2) = "Strain"
 diff_comp     =  groupComparison(contrast.matrix = comparison2, data=diff_assess)
 groupComparisonPlots(diff_comp$ComparisonResult, type = 'VolcanoPlot')
 ```
-
-
-```{r}
-
-my.t.test.p.value <- function(...) {
-    obj<-try(t.test(...), silent=TRUE)
-    if (is(obj, "try-error")) return(NA) else return(obj$p.value)
-}
-mergedPeps = merge(Tpeps, Fpeps, by = "Sequence")# all=TRUE)
-mergedPeps[is.na(mergedPeps)] = 0
-Trows   = c(40,43,44,45)
-Frows   = c(95,98,99,100)
-
-p = c()
-for (i in 1:dim(mergedPeps)[1]) {
-  r    = mergedPeps[i,Frows]/(mergedPeps[i, Frows] + mergedPeps[i,Trows])
-  p[i] = my.t.test.p.value(r, mu = 0.1)
-}
-
-crap = cbind(p, as.character(mergedPeps$Sequence), rowMeans(mergedPeps[,Frows]/(mergedPeps[, Frows] + mergedPeps[,Trows])))
-write.csv(crap, "crap.csv")
-```
-
-```{r}
-setwd("D:/jmcmurry/Documents/20160609_morph_processing_files/")
-gcogs                  = read.csv("genome_COGs.txt", sep = "\t")
-pcogs                  = read.csv("plasmid_COGs.txt", sep= "\t")
-IDmapping              = read.csv("gene-name-comparisons.txt", sep = "\t")
-allcogs                = rbind(gcogs, pcogs)
-allcogs                = merge(allcogs, IDmapping, by = "SCAT_ID")
-names(allcogs)[14]     = "Proteins"
-Fcogs                  = merge(allcogs, Fpeps, by = "Proteins")
-Tcogs                  = merge(allcogs, Tpeps, by = "Proteins")
-Fcog_table             = data.frame(table(Fcogs$COGclassID))
-Tcog_table             = data.frame(table(Tcogs$COGclassID))
-TFcog_table            = merge(Tcog_table, Fcog_table, by = "Var1")
-row.names(TFcog_table) = TFcog_table$Var1
-TFcog_table            = TFcog_table[,2:3]
-names(TFcog_table)     = c("Fthr peps", "Thr peps")
-write.csv(TFcog_table, "FpepTpep_COGs.csv")
-fishy                  = fisher.test(TFcog_table, simulate.p.value = TRUE)
-fishy
-```
-
