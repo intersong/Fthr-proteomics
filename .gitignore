@@ -60,3 +60,10 @@ DEseq_cleaner2.py
 inventory.txt
 sessionInfo.txt
 for_getting_peptides_proteins_with_fthr.py
+ID_mapper.py
+fthr_msstats_cache/
+msms.txt
+msms.zip
+number_of_peptides_with_F_vs_total.py
+number_of_proteins_with_F_vs_total.py
+proteomics2DEseq.rmd
